@@ -3,6 +3,9 @@ package com.escuela.gestion.models;
 import jakarta.persistence.*;
 import lombok.Data;
 
+import java.util.Set;
+import java.util.HashSet;
+
 @Data
 @Entity
 @Table(name = "asignaciones")
@@ -23,15 +26,11 @@ public class Asignacion {
     @JoinColumn(name = "turno_id", nullable = false)
     private Turno turno;
 
-    public void setMaestro(Maestro orElse) {
-        throw new UnsupportedOperationException("Not supported yet.");
-    }
-
-    public void setMateria(Materia orElse) {
-        throw new UnsupportedOperationException("Not supported yet.");
-    }
-
-    public void setTurno(Turno orElse) {
-        throw new UnsupportedOperationException("Not supported yet.");
-    }
+    @ManyToMany
+    @JoinTable(
+            name = "asignacion_alumnos",
+            joinColumns = @JoinColumn(name = "asignacion_id"),
+            inverseJoinColumns = @JoinColumn(name = "alumno_id")
+    )
+    private Set<Alumno> alumnos = new HashSet<>();
 }
