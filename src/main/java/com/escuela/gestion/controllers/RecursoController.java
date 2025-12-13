@@ -1,20 +1,16 @@
 package com.escuela.gestion.controllers;
 
-import com.escuela.gestion.models.Recurso;
 import com.escuela.gestion.models.Asignacion;
-import com.escuela.gestion.repositories.RecursoRepository;
+import com.escuela.gestion.models.Recurso;
 import com.escuela.gestion.repositories.AsignacionRepository;
+import com.escuela.gestion.repositories.RecursoRepository;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.server.ResponseStatusException;
-
 
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 
 @RestController
 @RequestMapping("/api")
@@ -23,71 +19,101 @@ public class RecursoController {
 
     @Autowired
     private RecursoRepository recursoRepository;
+
     @Autowired
     private AsignacionRepository asignacionRepository;
 
-    // GET: Listar
+    // GET: Obtener recursos de un curso
+    // Se ajusta a tu repositorio usando 'findByAsignacionId'
     @GetMapping("/asignaciones/{id}/recursos")
     public List<Recurso> getRecursosPorAsignacion(@PathVariable Long id) {
         return recursoRepository.findByAsignacionId(id);
     }
 
-    // POST: Crear (Con validaciones WOW)
+    // POST: Crear nuevo recurso
     @PostMapping("/recursos")
     public ResponseEntity<?> crearRecurso(@RequestBody Map<String, Object> payload) {
         try {
             Recurso recurso = new Recurso();
-            String tipo = (String) payload.get("tipo");
-            String url = (String) payload.get("url");
-            String titulo = (String) payload.get("titulo");
-
-            // VALIDACIONES DE BACKEND
-            if (titulo == null || titulo.trim().isEmpty()) {
-                return ResponseEntity.badRequest().body(Map.of("error", "El título es obligatorio."));
-            }
-
-            if ("link".equals(tipo)) {
-                if (url == null || !url.startsWith("http")) {
-                    return ResponseEntity.badRequest().body(Map.of("error", "La URL es inválida (debe empezar con http/https)."));
-                }
-                recurso.setUrl(url);
-            } else if ("file".equals(tipo)) {
-                String archivo = (String) payload.get("archivoBase64");
-                if (archivo == null || archivo.isEmpty()) {
-                    return ResponseEntity.badRequest().body(Map.of("error", "Debes adjuntar un archivo."));
-                }
-                recurso.setArchivoBase64(archivo);
-                recurso.setUrl(""); // Sin URL externa
-            }
-
-            recurso.setTitulo(titulo);
-            recurso.setTipo(tipo);
-            recurso.setCreatedAt(LocalDateTime.now());
-
-            Object asignacionIdObj = payload.get("asignacionId");
-            if (asignacionIdObj != null) {
-                Long asignacionId = Long.valueOf(asignacionIdObj.toString());
-                Asignacion asignacion = asignacionRepository.findById(asignacionId)
-                    .orElseThrow(() -> new RuntimeException("Asignación no encontrada"));
-                recurso.setAsignacion(asignacion);
-            }
-
-            Recurso guardado = recursoRepository.save(recurso);
-            return ResponseEntity.ok(guardado);
-
+            return guardarRecurso(recurso, payload);
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(Map.of("error", "Error interno: " + e.getMessage()));
+            return ResponseEntity.badRequest().body(Map.of("error", "Error al guardar: " + e.getMessage()));
         }
     }
 
-    // DELETE: Borrar
+    // PUT: Editar recurso existente
+    @PutMapping("/recursos/{id}")
+    public ResponseEntity<?> editarRecurso(@PathVariable Long id, @RequestBody Map<String, Object> payload) {
+        return recursoRepository.findById(id)
+                .map(recurso -> {
+                    try {
+                        return guardarRecurso(recurso, payload);
+                    } catch (Exception e) {
+                        return ResponseEntity.badRequest().body(Map.of("error", "Error al actualizar: " + e.getMessage()));
+                    }
+                })
+                .orElse(ResponseEntity.notFound().build());
+    }
+
+    // DELETE: Eliminar recurso
     @DeleteMapping("/recursos/{id}")
-    public ResponseEntity<?> borrarRecurso(@PathVariable Long id) {
+    public ResponseEntity<?> eliminarRecurso(@PathVariable Long id) {
         if (!recursoRepository.existsById(id)) {
             return ResponseEntity.notFound().build();
         }
         recursoRepository.deleteById(id);
-        return ResponseEntity.ok(Map.of("message", "Recurso eliminado correctamente"));
+        return ResponseEntity.ok(Map.of("message", "Recurso eliminado"));
+    }
+
+    // --- MÉTODO AUXILIAR PARA GUARDAR (Lógica común para Crear y Editar) ---
+    private ResponseEntity<?> guardarRecurso(Recurso recurso, Map<String, Object> payload) {
+        // 1. Validar datos obligatorios
+        String titulo = (String) payload.get("titulo");
+        String tipo = (String) payload.get("type"); // 'link' o 'file'
+        
+        // Convertimos de forma segura el ID (puede venir como Integer o Long)
+        Object asignacionIdObj = payload.get("asignacionId");
+        Long asignacionId = (asignacionIdObj instanceof Number) ? ((Number) asignacionIdObj).longValue() : Long.parseLong(asignacionIdObj.toString());
+
+        if (titulo == null || titulo.trim().isEmpty() || tipo == null) {
+            return ResponseEntity.badRequest().body(Map.of("error", "Faltan datos obligatorios (titulo, type)"));
+        }
+
+        // 2. Asignar datos básicos
+        recurso.setTitulo(titulo);
+        recurso.setTipo(tipo);
+
+        // 3. Lógica para diferenciar Link vs Archivo
+        if ("link".equals(tipo)) {
+            String url = (String) payload.get("url");
+            if (url == null || url.trim().isEmpty()) {
+                return ResponseEntity.badRequest().body(Map.of("error", "La URL es obligatoria para recursos tipo enlace"));
+            }
+            recurso.setUrl(url);
+            recurso.setArchivoBase64(null); // Limpiamos archivo si cambiaron a tipo link
+        } else if ("file".equals(tipo)) {
+            String base64 = (String) payload.get("archivoBase64");
+            // Solo actualizamos el archivo si viene uno nuevo. 
+            // Si es edición y no viene archivo, mantenemos el que ya estaba (si existe).
+            if (base64 != null && !base64.isEmpty()) {
+                recurso.setArchivoBase64(base64);
+            } else if (recurso.getId() == null) { 
+                // Si es nuevo registro y no hay archivo
+                return ResponseEntity.badRequest().body(Map.of("error", "El archivo es obligatorio"));
+            }
+            recurso.setUrl(null); // Limpiamos URL si cambiaron a tipo file
+        }
+
+        // 4. Si es nuevo, asignamos fecha y relación con Asignación
+        if (recurso.getId() == null) {
+            recurso.setCreatedAt(LocalDateTime.now());
+            Asignacion asignacion = asignacionRepository.findById(asignacionId)
+                    .orElseThrow(() -> new RuntimeException("Curso no encontrado"));
+            recurso.setAsignacion(asignacion);
+        }
+
+        // 5. Guardar en BD
+        Recurso guardado = recursoRepository.save(recurso);
+        return ResponseEntity.ok(guardado);
     }
 }

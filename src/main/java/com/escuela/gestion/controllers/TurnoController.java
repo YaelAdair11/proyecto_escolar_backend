@@ -22,4 +22,21 @@ public class TurnoController {
     public Turno create(@RequestBody Turno turno) {
         return turnoRepository.save(turno);
     }
+
+    // EDITAR TURNO
+    @PutMapping("/{id}")
+    public Turno update(@PathVariable Long id, @RequestBody Turno turnoDetails) {
+        return turnoRepository.findById(id)
+                .map(turno -> {
+                    turno.setNombreTurno(turnoDetails.getNombreTurno());
+                    return turnoRepository.save(turno);
+                })
+                .orElse(null);
+    }
+
+    // ELIMINAR TURNO
+    @DeleteMapping("/{id}")
+    public void delete(@PathVariable Long id) {
+        turnoRepository.deleteById(id);
+    }
 }

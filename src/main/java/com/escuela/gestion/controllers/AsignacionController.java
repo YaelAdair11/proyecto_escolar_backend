@@ -20,48 +20,92 @@ public class AsignacionController {
     @Autowired private MateriaRepository materiaRepository;
     @Autowired private TurnoRepository turnoRepository;
 
+    // GET: Listar todas
     @GetMapping
     public List<Asignacion> getAll() {
         return asignacionRepository.findAll();
     }
 
-    // Recibimos un mapa con los IDs
+    // POST: Crear nueva asignación
     @PostMapping
-    public ResponseEntity<?> create(@RequestBody Map<String, Integer> payload) {
-        // Convertimos los IDs (Integer) a Long
-        Long maestroId = Long.valueOf(payload.get("maestro_id"));
-        Long materiaId = Long.valueOf(payload.get("materia_id"));
-        Long turnoId = Long.valueOf(payload.get("turno_id"));
-
-        // Buscamos las entidades
-        Optional<Maestro> maestroOpt = maestroRepository.findById(maestroId);
-        Optional<Materia> materiaOpt = materiaRepository.findById(materiaId);
-        Optional<Turno> turnoOpt = turnoRepository.findById(turnoId);
-
-        // Verificamos si alguna entidad no fue encontrada
-        if (maestroOpt.isEmpty() || materiaOpt.isEmpty() || turnoOpt.isEmpty()) {
-            return ResponseEntity.badRequest().body("El maestro, materia o turno especificado no existe.");
+    public ResponseEntity<?> create(@RequestBody Map<String, Object> payload) { // Usamos Object para evitar errores de cast
+        try {
+            Asignacion nueva = new Asignacion();
+            return guardarAsignacion(nueva, payload);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body("Error al crear la asignación: " + e.getMessage());
         }
-
-        // Si todo existe, creamos la nueva asignación
-        Asignacion nueva = new Asignacion();
-        nueva.setMaestro(maestroOpt.get());
-        nueva.setMateria(materiaOpt.get());
-        nueva.setTurno(turnoOpt.get());
-
-        Asignacion savedAsignacion = asignacionRepository.save(nueva);
-        return ResponseEntity.ok(savedAsignacion);
     }
 
-    @GetMapping("/{id}/alumnos")
-    public ResponseEntity<?> getAlumnosDeAsignacion(@PathVariable Long id) {
+    // PUT: Editar asignación existente
+    @PutMapping("/{id}")
+    public ResponseEntity<?> update(@PathVariable Long id, @RequestBody Map<String, Object> payload) {
         Optional<Asignacion> asignacionOpt = asignacionRepository.findById(id);
 
         if (asignacionOpt.isEmpty()) {
             return ResponseEntity.notFound().build();
         }
 
-        Asignacion asignacion = asignacionOpt.get();
-        return ResponseEntity.ok(asignacion.getAlumnos());
+        try {
+            return guardarAsignacion(asignacionOpt.get(), payload);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body("Error al actualizar: " + e.getMessage());
+        }
+    }
+
+    // DELETE: Eliminar asignación
+    @DeleteMapping("/{id}")
+    public ResponseEntity<?> delete(@PathVariable Long id) {
+        if (!asignacionRepository.existsById(id)) {
+            return ResponseEntity.notFound().build();
+        }
+        asignacionRepository.deleteById(id);
+        return ResponseEntity.ok().build();
+    }
+
+    // Endpoint extra para obtener alumnos de un curso (que ya tenías)
+    @GetMapping("/{id}/alumnos")
+    public ResponseEntity<?> getAlumnosDeAsignacion(@PathVariable Long id) {
+        Optional<Asignacion> asignacionOpt = asignacionRepository.findById(id);
+        if (asignacionOpt.isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
+        return ResponseEntity.ok(asignacionOpt.get().getAlumnos());
+    }
+
+    // --- MÉTODO AUXILIAR PARA EVITAR REPETIR CÓDIGO ---
+    private ResponseEntity<?> guardarAsignacion(Asignacion asignacion, Map<String, Object> payload) {
+        // Conversión segura de IDs (acepta Integer o Long del JSON)
+        Long maestroId = convertToLong(payload.get("maestro_id"));
+        Long materiaId = convertToLong(payload.get("materia_id"));
+        Long turnoId = convertToLong(payload.get("turno_id"));
+
+        if (maestroId == null || materiaId == null || turnoId == null) {
+            return ResponseEntity.badRequest().body("Faltan datos (maestro_id, materia_id o turno_id)");
+        }
+
+        // Buscamos las entidades relacionadas
+        Optional<Maestro> maestroOpt = maestroRepository.findById(maestroId);
+        Optional<Materia> materiaOpt = materiaRepository.findById(materiaId);
+        Optional<Turno> turnoOpt = turnoRepository.findById(turnoId);
+
+        if (maestroOpt.isEmpty() || materiaOpt.isEmpty() || turnoOpt.isEmpty()) {
+            return ResponseEntity.badRequest().body("El maestro, materia o turno especificado no existe.");
+        }
+
+        // Actualizamos la asignación
+        asignacion.setMaestro(maestroOpt.get());
+        asignacion.setMateria(materiaOpt.get());
+        asignacion.setTurno(turnoOpt.get());
+
+        Asignacion saved = asignacionRepository.save(asignacion);
+        return ResponseEntity.ok(saved);
+    }
+
+    // Helper para convertir cualquier número del JSON a Long
+    private Long convertToLong(Object o) {
+        if (o instanceof Number) return ((Number) o).longValue();
+        if (o instanceof String) return Long.parseLong((String) o);
+        return null;
     }
 }

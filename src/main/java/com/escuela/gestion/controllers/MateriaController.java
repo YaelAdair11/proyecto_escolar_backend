@@ -22,4 +22,23 @@ public class MateriaController {
     public Materia create(@RequestBody Materia materia) {
         return materiaRepository.save(materia);
     }
+
+    // EDITAR MATERIA
+    @PutMapping("/{id}")
+    public Materia update(@PathVariable Long id, @RequestBody Materia materiaDetails) {
+        return materiaRepository.findById(id)
+                .map(materia -> {
+                    materia.setNombreMateria(materiaDetails.getNombreMateria());
+                    materia.setClaveMateria(materiaDetails.getClaveMateria());
+                    materia.setDescripcion(materiaDetails.getDescripcion());
+                    return materiaRepository.save(materia);
+                })
+                .orElse(null);
+    }
+
+    // ELIMINAR MATERIA
+    @DeleteMapping("/{id}")
+    public void delete(@PathVariable Long id) {
+        materiaRepository.deleteById(id);
+    }
 }
