@@ -89,7 +89,7 @@ public class RecursoController {
                 return ResponseEntity.badRequest().body(Map.of("error", "La URL es obligatoria para recursos tipo enlace"));
             }
             recurso.setUrl(url);
-            recurso.setArchivoBase64(null); // si es link no ocupamos guardar archivo
+            recurso.setArchivoBase64(""); // si es link no ocupamos guardar archivo
         } else if ("file".equals(tipo)) {
             String base64 = (String) payload.get("archivoBase64");
             // solo cambiamos el archivo si el usuario subio uno nuevo, si no dejamos el anterior
@@ -99,7 +99,7 @@ public class RecursoController {
                 // si es nuevo a fuerza necesita archivo
                 return ResponseEntity.badRequest().body(Map.of("error", "El archivo es obligatorio"));
             }
-            recurso.setUrl(null); // limpiamos url si ahora es archivo
+            recurso.setUrl(""); // limpiamos url si ahora es archivo
         }
 
         // si es nuevo le ponemos fecha y lo ligamos a la materia
