@@ -98,5 +98,10 @@ Este proyecto está configurado para desplegarse usando **Docker**.
 curl -X GET [https://proyecto-escolar-backend.onrender.com/api/alumnos](https://proyecto-escolar-backend.onrender.com/api/alumnos)
 
 ### 1. Obtener todos los alumnos
-```bash
+
 curl -X GET [https://proyecto-escolar-backend.onrender.com/api/alumnos](https://proyecto-escolar-backend.onrender.com/api/alumnos)
+
+### 2. Crear un nuevo Maestro
+curl -X POST [https://proyecto-escolar-backend.onrender.com/api/maestros](https://proyecto-escolar-backend.onrender.com/api/maestros) \
+-H "Content-Type: application/json" \
+-d '{"nombre": "Juan", "apellido": "Pérez", "email": "juan@test.com", "telefono": "555123456"}'
