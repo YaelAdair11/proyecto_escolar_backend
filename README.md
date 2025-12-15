@@ -55,7 +55,7 @@ Este proyecto ofrece una solución tecnológica unificada para agilizar la gesti
 ### Pasos
 1.  **Clonar el repositorio:**
     ```bash
-    git clone [https://github.com/YaelAdair11/proyecto_escolar_backend.git](https://github.com/YaelAdair11/proyecto_escolar_backend.git)
+    git clone https://github.com/YaelAdair11/proyecto_escolar_backend.git
     cd proyecto_escolar_backend
     ```
 
